@@ -1,53 +1,69 @@
 struct Solution;
 impl Solution {
-    pub fn longest_palindrome(s: String) -> String {
-        let s: Vec<_> = s.chars().collect();
-        let len = s.len();
-        let mut best: String = String::new();
-        // i is the index of the first char
-        for i in 0..len {
-            // j is the length of the substring
-            for j in (1..=(len - i)).rev() {
-                if j < best.len() {
-                    break;
-                }
-                let substring: &[char] = &s[i..i + j];
-                if is_palindrome(substring) {
-                    use std::iter::FromIterator;
-                    best = String::from_iter(substring.into_iter());
-                }
-            }
-        }
-
-        best
+    pub fn is_match(input: String, pattern: String) -> bool {
+        dbg!(&pattern);
+        let pattern = parse_pattern(&pattern[..]);
+        dbg!(pattern);
+        unimplemented!();
     }
 }
 
-fn is_palindrome(inp: &[char]) -> bool {
-    let len = inp.len();
-    if len == 0 || len == 1 {
-        true
-    } else if inp[0] == inp[len - 1] {
-        is_palindrome(&inp[1..len - 1])
-    } else {
-        false
+#[derive(Debug)]
+enum RegexpToken {
+    Literal(char),
+    Wildcard,
+    Star(char),
+    WildcardStar,
+}
+fn parse_pattern(pattern: &str) -> Vec<RegexpToken> {
+    let mut ret: Vec<RegexpToken> = vec![];
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let current: char = chars[i];
+        let current_is_wildcard: bool = current == '.';
+        let is_star: bool = i < chars.len() - 1 && chars[i + 1] == '*';
+        ret.push(match (current_is_wildcard, is_star) {
+            (true, true) => RegexpToken::WildcardStar,
+            (true, false) => RegexpToken::Wildcard,
+            (false, true) => RegexpToken::Star(current),
+            (false, false) => RegexpToken::Literal(current),
+        });
+        if is_star {
+            i += 2;
+        } else {
+            i += 1;
+        }
     }
+
+    ret
 }
 fn main() {
-    // dbg!(Solution::longest_palindrome("babad".into()));
-    dbg!(Solution::longest_palindrome("cbbd".into()));
+    assert_eq!(false, Solution::is_match("aa".into(), "a".into()));
+    assert_eq!(false, Solution::is_match("aa".into(), "a*".into()));
+    assert_eq!(false, Solution::is_match("ab".into(), ".*".into()));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn test_babad() {
-        let substring = Solution::longest_palindrome("babad".into());
-        assert!(substring == "bab" || substring == "aba");
+    fn test_aa_a() {
+        assert_eq!(false, Solution::is_match("aa".into(), "a".into()));
     }
+
     #[test]
-    fn test_babad() {
-        assert!(Solution::longest_palindrome("cbbd".into()) == "bb");
+    fn test_aa_astart() {
+        assert_eq!(false, Solution::is_match("aa".into(), "a*".into()));
+    }
+
+    #[test]
+    fn test_ab_dotstar() {
+        assert_eq!(false, Solution::is_match("ab".into(), ".*".into()));
+    }
+
+    #[test]
+    fn test_aabb_cstarastarbstar() {
+        assert_eq!(false, Solution::is_match("aabb".into(), "c*a*b*".into()));
     }
 }
