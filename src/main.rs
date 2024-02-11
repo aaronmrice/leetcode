@@ -103,15 +103,13 @@ fn partial_solution_matches(inp: &str, partial: &PartialSolution) -> bool {
                 len_currently_matched += 1;
             }
             ParseNode::Star(char, len) => {
-                if inp_len <= len_currently_matched + *len as usize {
-                    for i in len_currently_matched..len_currently_matched + *len as usize {
-                        if let Some(inp_char) = inp.chars().nth(i) {
-                            if inp_char != *char {
-                                return false;
-                            }
-                        } else {
+                for i in len_currently_matched..len_currently_matched + *len as usize {
+                    if let Some(inp_char) = inp.chars().nth(i) {
+                        if inp_char != *char {
                             return false;
                         }
+                    } else {
+                        return false;
                     }
                 }
                 len_currently_matched += *len as usize;
