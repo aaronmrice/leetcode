@@ -95,9 +95,10 @@ fn partial_solution_matches(inp: &str, partial: &PartialSolution) -> bool {
                 len_currently_matched += 1;
             }
             ParseNode::Literal(char) => {
-                if len_currently_matched > inp_len
-                    || inp.chars().nth(len_currently_matched).unwrap() != *char
-                {
+                if len_currently_matched >= inp_len {
+                    return false;
+                }
+                if inp.chars().nth(len_currently_matched).unwrap() != *char {
                     return false;
                 }
                 len_currently_matched += 1;
@@ -126,8 +127,10 @@ fn partial_solution_matches(inp: &str, partial: &PartialSolution) -> bool {
 }
 
 /// return true if `partial` is a complete solution, and false otherwise.
-fn accept(inp: &str, partial: &PartialSolution) -> bool {
-    length(partial) == inp.len() as u32 && partial_solution_matches(inp, partial)
+fn accept(inp: &str, regex: &Regex, partial: &PartialSolution) -> bool {
+    regex.len() == partial.len()
+        && length(partial) == inp.len() as u32
+        && partial_solution_matches(inp, partial)
 }
 /// return true only if the partial candidate c is not worth completing.
 fn reject(inp: &str, partial: &PartialSolution) -> bool {
@@ -207,7 +210,7 @@ fn backtrack(inp: &str, regex: &Regex, current: PartialSolution) -> Option<Parti
     if dbg!(reject(inp, &current)) {
         return None;
     }
-    if dbg!(accept(inp, &current)) {
+    if dbg!(accept(inp, &regex, &current)) {
         return Some(current);
     }
     let mut candidate: Option<PartialSolution> = first(inp, regex, &current);
@@ -264,6 +267,10 @@ mod tests {
         assert_eq!(false, Solution::is_match("b".into(), "a*".into()));
     }
 
+    #[test]
+    fn test_ab_dotstarc() {
+        assert_eq!(false, Solution::is_match("ab".into(), ".*c".into()));
+    }
     #[test]
     fn test_ab_dotstar() {
         assert_eq!(true, Solution::is_match("ab".into(), ".*".into()));
