@@ -1,3 +1,6 @@
+pub fn main() {}
+struct Solution {}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum RegexToken {
     Literal(char),
@@ -31,53 +34,30 @@ fn parse_regex(pattern: &str) -> Regex {
     ret
 }
 
-pub fn main() {}
-
-struct Solution {}
 impl Solution {
-    pub fn is_match(input_text: String, regex_pattern: &str) -> bool {
-        let regex: Regex = parse_regex(regex_pattern);
-        let mut memo: Vec<Option<bool>> = Vec::with_capacity(input_text.len() * regex.len());
-        let result = match_regex(&regex, &input_text, 0, 0, &mut memo);
+    pub fn is_match(input_text: String, regex_pattern: String) -> bool {
+        let regex: Regex = parse_regex(regex_pattern.as_str());
+        let chars: Vec<_> = input_text.chars().collect();
+        let mut memo: Vec<Option<bool>> = vec![None; (input_text.len() + 1) * (regex.len() + 1)];
+        let result = match_regex(&regex, &chars[..], 0, 0, &mut memo);
 
         result
     }
 }
 
-// boolean ans;
-// if (j == pattern.length()) {
-//     ans = i == text.length();
-// } else {
-//     boolean first_match =
-//     (i < text.length() &&
-//     (pattern.charAt(j) == text.charAt(i) ||
-//     pattern.charAt(j) == '.'));
-//
-//     if (j + 1 < pattern.length() && pattern.charAt(j + 1) == '*') {
-//         ans = (dp(i, j + 2, text, pattern) ||
-//         (first_match && dp(i + 1, j, text, pattern)));
-//     } else {
-//         ans = first_match && dp(i + 1, j + 1, text, pattern);
-//     }
-// }
-// memo[i][j] = ans ? Result.TRUE : Result.FALSE;
-// return ans;
 fn match_regex(
     regex: &Regex,
-    input: &str,
+    input: &[char],
     regex_idx: usize,
     input_idx: usize,
     memo: &mut Vec<Option<bool>>,
 ) -> bool {
-    assert!(regex_idx <= regex.len());
-    assert!(input_idx <= input.len());
+    assert!(regex_idx <= regex.len() + 1);
+    assert!(input_idx <= input.len() + 1);
     let memo_cell_idx = regex_idx * input.len() + input_idx;
     assert!(memo_cell_idx < memo.len());
 
-    println!(
-        "match_regex, regex_idx={}, input_idx={},",
-        regex_idx, input_idx
-    );
+    dbg!(regex_idx, input_idx, regex.len(), input.len());
 
     {
         let memo_cell: Option<bool> = memo[memo_cell_idx];
@@ -86,28 +66,29 @@ fn match_regex(
         }
     }
     let result: bool = if regex_idx == regex.len() {
+        // if we're one-past-the-end of regex tokens, we better be one-past-the-end on the input text
         input.len() == input_idx
-    } else if input_idx >= input.len() {
-        false
     } else {
-        // guaranteed to have data for both regex and text
-        let input_char = input.chars().nth(input_idx).unwrap();
         let regex_token = regex[regex_idx];
-        println!("input_char={:?}, regex_token={:?}", input_char, regex_token);
 
         use RegexToken::*;
         match regex_token {
             Literal(pattern) => {
-                input_char == pattern
+                input.len() > input_idx
+                    && input[input_idx] == pattern
                     && match_regex(regex, input, regex_idx + 1, input_idx + 1, memo)
             }
-            Wildcard => true,
+            Wildcard => {
+                input.len() > input_idx
+                    && match_regex(regex, input, regex_idx + 1, input_idx + 1, memo)
+            }
             Star(pattern) => {
                 // if we can match current regex token as zero width, then yes it matches
                 match_regex(regex, input, regex_idx + 1, input_idx, memo)
                     || (
                         // if the pattern doesn't match this char in the text, we can't match
-                        input_char == pattern
+                        input.len() > input_idx
+                            && input[input_idx] == pattern
                             && (
                                 // we can either match more input with the same token
                                 match_regex(regex,input,regex_idx, input_idx + 1, memo)
@@ -120,12 +101,14 @@ fn match_regex(
             WildcardStar => {
                 // we can match current regex token as zero width
                 match_regex(regex, input, regex_idx + 1, input_idx, memo)
-                        ||
-                        // we can either match more input with the same token
-                        match_regex(regex,input,regex_idx, input_idx + 1, memo)
+                    || (input.len() > input_idx
+                        && (
+                            // we can either match more input with the same token
+                            match_regex(regex,input,regex_idx, input_idx + 1, memo)
                         ||
                         // we can match the last char for the token, advance to next regex token and next char of the text
                         match_regex(regex,input,regex_idx + 1, input_idx + 1, memo)
+                        ))
             }
         }
     };
@@ -153,7 +136,7 @@ mod tests {
         assert_eq!(true, Solution::is_match("a".into(), "a*".into()));
         assert_eq!(true, Solution::is_match("aa".into(), "a*".into()));
         assert_eq!(true, Solution::is_match("aaaaaaaaaa".into(), "a*".into()));
-        assert_eq!(true, Solution::is_match("".into(), "a*".into()));
+        assert!(Solution::is_match("".into(), "a*".into()));
 
         assert_eq!(false, Solution::is_match("aaaaaab".into(), "a*".into()));
         assert_eq!(false, Solution::is_match("b".into(), "a*".into()));
@@ -176,5 +159,15 @@ mod tests {
     #[test]
     fn test_aabb_cstarastarbstar() {
         assert_eq!(true, Solution::is_match("aabb".into(), "c*a*b*".into()));
+    }
+
+    #[test]
+    fn leetcode_testcase_25_a_abstara() {
+        assert!(!Solution::is_match("a".into(), "ab*a".into()))
+    }
+
+    #[test]
+    fn leetcode_testcase_28_a_dotstardotdotastar() {
+        assert!(!Solution::is_match("a".into(), ".*..a*".into()));
     }
 }
