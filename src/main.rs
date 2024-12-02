@@ -1,27 +1,3 @@
-/*
-In order to apply backtracking to a specific class of problems,
-one must provide the data P for the particular instance of the problem that is to be solved,
-and six procedural parameters, root, reject, accept, first, next, and output.
-These procedures should take the instance data P as a parameter and should do the following:
-
-root(P): return the partial candidate at the root of the search tree.
-reject(P,c): return true only if the partial candidate c is not worth completing.
-accept(P,c): return true if c is a solution of P, and false otherwise.
-first(P,c): generate the first extension of candidate c.
-next(P,s): generate the next alternative extension of a candidate, after the extension s.
-output(P,c): use the solution c of P, as appropriate to the application.
-
-The backtracking algorithm reduces the problem to the call backtrack(root(P)),
-where backtrack is the following recursive procedure:
-procedure backtrack(P, c) is
-    if reject(P, c) then return
-    if accept(P, c) then output(P, c)
-    s ← first(P, c)
-    while s ≠ NULL do
-        backtrack(P, s)
-        s ← next(P, s)
-*/
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum RegexToken {
     Literal(char),
@@ -55,194 +31,110 @@ fn parse_regex(pattern: &str) -> Regex {
     ret
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum ParseNode {
-    Literal(char),
-    Wildcard,
-    Star(char, u32),   // length
-    WildcardStar(u32), // length
+pub fn main() {}
+
+struct Solution {}
+impl Solution {
+    pub fn is_match(input_text: String, regex_pattern: &str) -> bool {
+        let regex: Regex = parse_regex(regex_pattern);
+        let mut memo: Vec<Option<bool>> = Vec::with_capacity(input_text.len() * regex.len());
+        let result = match_regex(&regex, &input_text, 0, 0, &mut memo);
+
+        result
+    }
 }
 
-type PartialSolution = Vec<ParseNode>;
+// boolean ans;
+// if (j == pattern.length()) {
+//     ans = i == text.length();
+// } else {
+//     boolean first_match =
+//     (i < text.length() &&
+//     (pattern.charAt(j) == text.charAt(i) ||
+//     pattern.charAt(j) == '.'));
+//
+//     if (j + 1 < pattern.length() && pattern.charAt(j + 1) == '*') {
+//         ans = (dp(i, j + 2, text, pattern) ||
+//         (first_match && dp(i + 1, j, text, pattern)));
+//     } else {
+//         ans = first_match && dp(i + 1, j + 1, text, pattern);
+//     }
+// }
+// memo[i][j] = ans ? Result.TRUE : Result.FALSE;
+// return ans;
+fn match_regex(
+    regex: &Regex,
+    input: &str,
+    regex_idx: usize,
+    input_idx: usize,
+    memo: &mut Vec<Option<bool>>,
+) -> bool {
+    assert!(regex_idx <= regex.len());
+    assert!(input_idx <= input.len());
+    let memo_cell_idx = regex_idx * input.len() + input_idx;
+    assert!(memo_cell_idx < memo.len());
 
-fn length(inp: &PartialSolution) -> u32 {
-    use ParseNode::*;
-    inp.iter()
-        .map(|x| match x {
-            Literal(_) => 1,
-            Wildcard => 1,
-            Star(_, len) => *len,
-            WildcardStar(len) => *len,
-        })
-        .sum()
-}
-/// return the partial candidate at the root of the search tree.
-/// for us, an empty list, having matched nothing
-fn root() -> PartialSolution {
-    Vec::new()
-}
+    println!(
+        "match_regex, regex_idx={}, input_idx={},",
+        regex_idx, input_idx
+    );
 
-/// returns true if the partial solution matches the input
-fn partial_solution_matches(inp: &str, partial: &PartialSolution) -> bool {
-    let inp_len: usize = inp.chars().count();
-    let mut len_currently_matched: usize = 0;
-    for node in partial {
-        match node {
-            ParseNode::Wildcard => {
-                if len_currently_matched + 1 > inp_len {
-                    return false;
-                }
-                len_currently_matched += 1;
-            }
-            ParseNode::Literal(char) => {
-                if len_currently_matched >= inp_len {
-                    return false;
-                }
-                if inp.chars().nth(len_currently_matched).unwrap() != *char {
-                    return false;
-                }
-                len_currently_matched += 1;
-            }
-            ParseNode::Star(char, len) => {
-                for i in len_currently_matched..len_currently_matched + *len as usize {
-                    if let Some(inp_char) = inp.chars().nth(i) {
-                        if inp_char != *char {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-                len_currently_matched += *len as usize;
-            }
-            ParseNode::WildcardStar(len) => {
-                if inp_len < len_currently_matched + *len as usize {
-                    return false;
-                }
-                len_currently_matched += *len as usize;
-            }
+    {
+        let memo_cell: Option<bool> = memo[memo_cell_idx];
+        if memo_cell.is_some() {
+            return memo_cell.unwrap();
         }
     }
-    true
-}
-
-/// return true if `partial` is a complete solution, and false otherwise.
-fn accept(inp: &str, regex: &Regex, partial: &PartialSolution) -> bool {
-    regex.len() == partial.len()
-        && length(partial) == inp.len() as u32
-        && partial_solution_matches(inp, partial)
-}
-/// return true only if the partial candidate c is not worth completing.
-fn reject(inp: &str, partial: &PartialSolution) -> bool {
-    !partial_solution_matches(inp, partial)
-}
-
-/// generate the first extension of candidate c.
-fn first(inp: &str, regex: &Regex, partial: &PartialSolution) -> Option<PartialSolution> {
-    let len_currently_matched = length(partial);
-    let next_regex_token = regex.get(partial.len());
-    if let Some(token) = next_regex_token {
-        use RegexToken::*;
-        let parse_node = match *token {
-            Literal(char) => ParseNode::Literal(char),
-            Wildcard => ParseNode::Wildcard,
-            Star(char) => ParseNode::Star(char, inp.len() as u32 - len_currently_matched),
-            WildcardStar => ParseNode::WildcardStar(inp.len() as u32 - len_currently_matched),
-        };
-
-        let mut ret: Vec<ParseNode> = partial.clone();
-        ret.push(parse_node);
-
-        Some(ret)
+    let result: bool = if regex_idx == regex.len() {
+        input.len() == input_idx
+    } else if input_idx >= input.len() {
+        false
     } else {
-        None
-    }
-}
-/// generate the next alternative extension of a candidate, after the extension s.
-/// at the same node level, which for us, I think, means just decrementing the star matching length
-fn next(inp: &str, regex: &Regex, mut candidate: PartialSolution) -> Option<PartialSolution> {
-    let next: Option<ParseNode> = match candidate.last().unwrap() {
-        ParseNode::Literal(x) => None,
-        ParseNode::Wildcard => None,
-        ParseNode::Star(x, len) => {
-            if *len == 0 {
-                None
-            } else {
-                Some(ParseNode::Star(*x, *len - 1))
+        // guaranteed to have data for both regex and text
+        let input_char = input.chars().nth(input_idx).unwrap();
+        let regex_token = regex[regex_idx];
+        println!("input_char={:?}, regex_token={:?}", input_char, regex_token);
+
+        use RegexToken::*;
+        match regex_token {
+            Literal(pattern) => {
+                input_char == pattern
+                    && match_regex(regex, input, regex_idx + 1, input_idx + 1, memo)
             }
-        }
-        ParseNode::WildcardStar(len) => {
-            if *len == 0 {
-                None
-            } else {
-                Some(ParseNode::WildcardStar(*len - 1))
+            Wildcard => true,
+            Star(pattern) => {
+                // if we can match current regex token as zero width, then yes it matches
+                match_regex(regex, input, regex_idx + 1, input_idx, memo)
+                    || (
+                        // if the pattern doesn't match this char in the text, we can't match
+                        input_char == pattern
+                            && (
+                                // we can either match more input with the same token
+                                match_regex(regex,input,regex_idx, input_idx + 1, memo)
+                    ||
+                        // or we can match the last char for the token, advance to next regex token and next char of the text
+                        match_regex(regex,input,regex_idx + 1, input_idx + 1, memo)
+                            )
+                    )
+            }
+            WildcardStar => {
+                // we can match current regex token as zero width
+                match_regex(regex, input, regex_idx + 1, input_idx, memo)
+                        ||
+                        // we can either match more input with the same token
+                        match_regex(regex,input,regex_idx, input_idx + 1, memo)
+                        ||
+                        // we can match the last char for the token, advance to next regex token and next char of the text
+                        match_regex(regex,input,regex_idx + 1, input_idx + 1, memo)
             }
         }
     };
-    match next {
-        None => None,
-        Some(parse_node) => {
-            let final_idx = candidate.len() - 1;
-            candidate[final_idx] = parse_node;
-            Some(candidate)
-        }
-    }
-}
 
-/* procedure backtrack(P, c) is
-    if reject(P, c) then return
-    if accept(P, c) then output(P, c)
-    s ← first(P, c)
-    while s ≠ NULL do
-        backtrack(P, s)
-        s ← next(P, s)
-*/
-// this function `backtrack` is given a node in the search graph
-// it will check if the node is final (reject, accept) and return if so
-// then it will iterate over the subnodes and call `backtrack` on each
-// success is bubbled up the call stack
-// failure is None
-fn backtrack(inp: &str, regex: &Regex, current: PartialSolution) -> Option<PartialSolution> {
-    println!(
-        "backtrack inp={} regex={:?} currrent={:?}",
-        inp, regex, &current
-    );
-    if dbg!(reject(inp, &current)) {
-        return None;
-    }
-    if dbg!(accept(inp, &regex, &current)) {
-        return Some(current);
-    }
-    let mut candidate: Option<PartialSolution> = first(inp, regex, &current);
-    while let Some(c) = candidate {
-        dbg!(&c);
-        if let Some(x) = backtrack(inp, regex, c.clone()) {
-            return Some(x);
-        }
-        candidate = dbg!(next(inp, regex, c.clone()));
-    }
-    return None; // I guess?
-}
+    // write the result to memory
+    memo[memo_cell_idx] = Some(result);
 
-struct Solution;
-impl Solution {
-    pub fn is_match(input: String, pattern: String) -> bool {
-        let regex = parse_regex(&pattern);
-        let root = root();
-        let result = backtrack(&input, &regex, root.clone());
-        return result.is_some();
-    }
-}
-
-fn main() {
-    assert_eq!(false, Solution::is_match("aa".into(), "a".into()));
-    assert_eq!(true, Solution::is_match("aa".into(), "a*".into()));
-    assert_eq!(true, Solution::is_match("ab".into(), ".*".into()));
-    assert_eq!(
-        true,
-        Solution::is_match("abbababababagf".into(), ".*".into())
-    );
-    assert_eq!(true, Solution::is_match("aaabb".into(), "c*a*b*".into()));
+    // return the result up the stack
+    return result;
 }
 
 #[cfg(test)]
@@ -252,8 +144,8 @@ mod tests {
     fn test_aa_a_() {
         assert_eq!(true, Solution::is_match("a".into(), "a".into()));
 
-        // assert_eq!(false, Solution::is_match("aa".into(), "a".into()));
-        // assert_eq!(false, Solution::is_match("b".into(), "a".into()));
+        assert_eq!(false, Solution::is_match("aa".into(), "a".into()));
+        assert_eq!(false, Solution::is_match("b".into(), "a".into()));
     }
 
     #[test]
@@ -284,13 +176,5 @@ mod tests {
     #[test]
     fn test_aabb_cstarastarbstar() {
         assert_eq!(true, Solution::is_match("aabb".into(), "c*a*b*".into()));
-    }
-
-    #[test]
-    fn test_first() {
-        let inp = "abccbcabcbcbaaa";
-        let regex = parse_regex("a*.*a*.*a*.*");
-        let expected = Some(vec![ParseNode::Star('a', inp.len() as u32)]);
-        assert_eq!(expected, first(inp, &regex, &vec![]));
     }
 }
